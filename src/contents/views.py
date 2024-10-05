@@ -4,6 +4,7 @@ from rest_framework.pagination import LimitOffsetPagination, PageNumberPaginatio
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from contents.content_service import ContentService
 from contents.filters import ContentFilter
 from contents.models import Content, Author, Tag, ContentTag
 from contents.serializers import ContentSerializer, ContentPostSerializer
@@ -12,6 +13,7 @@ from contents.serializers import ContentSerializer, ContentPostSerializer
 class ContentAPIView(APIView):
     pagination_class = LimitOffsetPagination
     filterset_class = ContentFilter
+    service = ContentService()
 
     def get_queryset(self):
         queryset = Content.objects.all()
@@ -75,73 +77,11 @@ class ContentAPIView(APIView):
          3. Fix the users complain
         """
 
-        serializer = ContentPostSerializer(data=request.data)
+        serializer = ContentPostSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
-
-        author = serializer.validated_data.get("author")
-        hashtags = serializer.validated_data.get("hashtags")
-
-        try:
-            author_object = Author.objects.get(unique_id=author["unique_external_id"])
-        except Author.DoesNotExist:
-            Author.objects.create(
-                username=author["unique_name"],
-                name=author["full_name"],
-                unique_id=author["unique_external_id"],
-                url=author["url"],
-                title=author["title"],
-                big_metadata=author["big_metadata"],
-                secret_value=author["secret_value"],
-            )
-            author_object = Author.objects.get(unique_id=author["unique_external_id"])
-            print("Author: ", author_object)
-
-        content = serializer.validated_data
-
-        try:
-            content_object = Content.objects.get(unique_id=content["unq_external_id"])
-        except Content.DoesNotExist:
-
-            Content.objects.create(
-                unique_id=content["unq_external_id"],
-                author=author_object,
-                title=content.get("title"),
-                big_metadata=content.get("big_metadata"),
-                secret_value=content.get("secret_value"),
-                thumbnail_url=content.get("thumbnail_view_url"),
-                like_count=content["stats"]["likes"],
-                comment_count=content["stats"]["comments"],
-                share_count=content["stats"]["shares"],
-                view_count=content["stats"]["views"],
-            )
-
-            content_object = Content.objects.get(unique_id=content["unq_external_id"])
-            print("Content: ", content_object)
-
-        for tag in hashtags:
-            try:
-                tag_object = Tag.objects.get(name=tag)
-            except Tag.DoesNotExist:
-                Tag.objects.create(name=tag)
-                tag_object = Tag.objects.get(name=tag)
-                print("Tag Object: ", tag_object)
-
-            try:
-                content_tag_object = ContentTag.objects.get(tag=tag_object, content=content_object)
-                print(content_tag_object)
-            except ContentTag.DoesNotExist:
-                ContentTag.objects.create(tag=tag_object, content=content_object)
-                content_tag_object = ContentTag.objects.get(tag=tag_object, content=content_object)
-                print("Content Object: ", content_tag_object)
-
-        return Response(
-            ContentSerializer(
-                {
-                    "content": content_object,
-                    "author": content_object.author,
-                }
-            ).data,
-        )
+        contents = serializer.validated_data
+        response_data = self.service.create_content(contents)
+        return Response(ContentSerializer(response_data, many=True).data)
 
 
 class ContentStatsAPIView(APIView):
