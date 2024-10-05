@@ -16,7 +16,7 @@ def pull_content():
     content_service.prepare_content(res)
 
 
-@app.task(queue="comment_generation", rate_limit='2/m')
+@app.task(queue="comment_generation", rate_limit="2/m")
 def generate_comment(content):
     content_service = ContentService()
     content_service.generate_comment(content)
