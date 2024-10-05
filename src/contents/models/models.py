@@ -1,59 +1,105 @@
 from django.db import models
 
 
-class Author(models.Model):
+class BaseModel(models.Model):
+    """
+    Base model for all models
+    """
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class Author(BaseModel):
     """
     TODO: When the data is being created or updated we don't know, need to add that information
     """
+
     name = models.CharField(max_length=100)
     username = models.CharField(max_length=100)
     unique_id = models.CharField(max_length=1024, db_index=True, unique=True)
-    url = models.CharField(max_length=1024, blank=True, )
-    title = models.CharField(max_length=1024, blank=True, )
+    url = models.CharField(
+        max_length=1024,
+        blank=True,
+    )
+    title = models.CharField(
+        max_length=1024,
+        blank=True,
+    )
     big_metadata = models.JSONField(blank=True, null=True)
     secret_value = models.JSONField(blank=True, null=True)
     followers = models.IntegerField(default=0)
 
 
-class Content(models.Model):
+class Content(BaseModel):
     """
     TODO: When the data is being created or updated we don't know, need to add that information
     """
+
     author = models.ForeignKey(Author, on_delete=models.CASCADE)
-    unique_id = models.CharField(max_length=1024, )
-    url = models.CharField(max_length=1024, blank=True, )
+    unique_id = models.CharField(
+        max_length=1024,
+    )
+    url = models.CharField(
+        max_length=1024,
+        blank=True,
+    )
     title = models.TextField(blank=True)
-    like_count = models.BigIntegerField(blank=True, null=False, default=0, )
-    comment_count = models.BigIntegerField(blank=True, null=False, default=0, )
-    view_count = models.BigIntegerField(blank=True, null=False, default=0, )
-    share_count = models.BigIntegerField(blank=True, null=False, default=0, )
+    like_count = models.BigIntegerField(
+        blank=True,
+        null=False,
+        default=0,
+    )
+    comment_count = models.BigIntegerField(
+        blank=True,
+        null=False,
+        default=0,
+    )
+    view_count = models.BigIntegerField(
+        blank=True,
+        null=False,
+        default=0,
+    )
+    share_count = models.BigIntegerField(
+        blank=True,
+        null=False,
+        default=0,
+    )
     thumbnail_url = models.URLField(max_length=1024, blank=True, null=True)
-    timestamp = models.DateTimeField(blank=True, null=True, )
+    timestamp = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
     big_metadata = models.JSONField(blank=True, null=True)
     secret_value = models.JSONField(blank=True, null=True)
 
 
-class Tag(models.Model):
+class Tag(BaseModel):
     """
     TODO: The tag is being duplicated sometimes, need to do something in the database.
     Filtering
     """
+
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
 
 
-class ContentTag(models.Model):
+class ContentTag(BaseModel):
     """
     TODO: The content and tag is being duplicated, need to do something in the database
     """
+
     content = models.ForeignKey(Content, on_delete=models.CASCADE)
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
 
 
-class MegaEcommerce(models.Model):
-    """
-    TODO: Normalize the model
-    """
+# TODO: Normalize the model
+
+"""
+class MegaEcommerce(BaseModel):
     # User Information
     user_id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=100, unique=True)
@@ -140,11 +186,12 @@ class MegaEcommerce(models.Model):
     class Meta:
         # This isn't a proper unique constraint, as it would prevent users from ordering the same product twice
         # It's just to illustrate the complexity of the denormalized model
-        unique_together = ('user_id', 'order_id', 'product_id')
+        unique_together = ("user_id", "order_id", "product_id")
         indexes = [
-            models.Index(fields=['username']),
-            models.Index(fields=['email']),
-            models.Index(fields=['order_id']),
-            models.Index(fields=['product_id']),
-            models.Index(fields=['payment_id']),
+            models.Index(fields=["username"]),
+            models.Index(fields=["email"]),
+            models.Index(fields=["order_id"]),
+            models.Index(fields=["product_id"]),
+            models.Index(fields=["payment_id"]),
         ]
+"""

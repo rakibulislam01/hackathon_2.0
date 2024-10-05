@@ -1,12 +1,21 @@
 from rest_framework import status
+from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from contents.filters import ContentFilter
 from contents.models import Content, Author, Tag, ContentTag
 from contents.serializers import ContentSerializer, ContentPostSerializer
 
 
 class ContentAPIView(APIView):
+    pagination_class = LimitOffsetPagination
+    filterset_class = ContentFilter
+
+    def get_queryset(self):
+        queryset = Content.objects.all()
+        filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        return filterset.qs
 
     def get(self, request):
         """
@@ -41,46 +50,22 @@ class ContentAPIView(APIView):
             - Should have items per page support in query params
             Example: `api_url?items_per_page=10&page=2`
         """
-        query_params = request.query_params.dict()
-        tag = query_params.get('tag', None)
-        if tag:
-            queryset = Content.objects.filter(
-                contenttag__tag__name=tag
-            ).order_by("-id")[:1000]
-        else:
-            queryset = Content.objects.all()
+        queryset = self.get_queryset()
+        paginator = self.pagination_class()
+        queryset = paginator.paginate_queryset(queryset, request)
         data_list = []
         for query in queryset:
             author = Author.objects.get(id=query.author_id)
-            data = {
-                "content": query,
-                "author": author
-            }
+            data = {"content": query, "author": author}
             data_list.append(data)
         serialized = ContentSerializer(data_list, many=True)
-        for serialized_data in serialized.data:
-            # Calculating `Total Engagement`
-            # Calculating `Engagement Rate`
-            like_count = serialized_data.get("like_count", 0)
-            comment_count = serialized_data.get("comment_count", 0)
-            share_count = serialized_data.get("share_count", 0)
-            view_count = serialized_data.get("view_count", 0)
-            total_engagement = like_count + comment_count + share_count
-            if view_count > 0:
-                engagement_rate = total_engagement / view_count
-            else:
-                engagement_rate = 0
-            serialized_data["content"]["engagement_rate"] = engagement_rate
-            serialized_data["content"]["total_engagement"] = total_engagement
-            tags = list(
-                ContentTag.objects.filter(
-                    content_id=serialized_data["content"]["id"]
-                ).values_list("tag__name", flat=True)
-            )
-            serialized_data["content"]["tags"] = tags
-        return Response(serialized.data, status=status.HTTP_200_OK)
+        paginator.get_paginated_response(serialized.data)
+        return paginator.get_paginated_response(serialized.data)
 
-    def post(self, request, ):
+    def post(
+        self,
+        request,
+    ):
         """
         TODO: This api is very hard to read, and inefficient.
          The users complaining that the contents they are seeing is not being updated.
@@ -99,9 +84,7 @@ class ContentAPIView(APIView):
         hashtags = serializer.validated_data.get("hashtags")
 
         try:
-            author_object = Author.objects.get(
-                unique_id=author["unique_external_id"]
-            )
+            author_object = Author.objects.get(unique_id=author["unique_external_id"])
         except Author.DoesNotExist:
             Author.objects.create(
                 username=author["unique_name"],
@@ -112,17 +95,13 @@ class ContentAPIView(APIView):
                 big_metadata=author["big_metadata"],
                 secret_value=author["secret_value"],
             )
-            author_object = Author.objects.get(
-                unique_id=author["unique_external_id"]
-            )
+            author_object = Author.objects.get(unique_id=author["unique_external_id"])
             print("Author: ", author_object)
 
         content = serializer.validated_data
 
         try:
-            content_object = Content.objects.get(
-                unique_id=content["unq_external_id"]
-            )
+            content_object = Content.objects.get(unique_id=content["unq_external_id"])
         except Content.DoesNotExist:
 
             Content.objects.create(
@@ -138,9 +117,7 @@ class ContentAPIView(APIView):
                 view_count=content["stats"]["views"],
             )
 
-            content_object = Content.objects.get(
-                unique_id=content["unq_external_id"]
-            )
+            content_object = Content.objects.get(unique_id=content["unq_external_id"])
             print("Content: ", content_object)
 
         for tag in hashtags:
@@ -152,20 +129,11 @@ class ContentAPIView(APIView):
                 print("Tag Object: ", tag_object)
 
             try:
-                content_tag_object = ContentTag.objects.get(
-                    tag=tag_object,
-                    content=content_object
-                )
+                content_tag_object = ContentTag.objects.get(tag=tag_object, content=content_object)
                 print(content_tag_object)
             except ContentTag.DoesNotExist:
-                ContentTag.objects.create(
-                    tag=tag_object,
-                    content=content_object
-                )
-                content_tag_object = ContentTag.objects.get(
-                    tag=tag_object,
-                    content=content_object
-                )
+                ContentTag.objects.create(tag=tag_object, content=content_object)
+                content_tag_object = ContentTag.objects.get(tag=tag_object, content=content_object)
                 print("Content Object: ", content_tag_object)
 
         return Response(
@@ -203,9 +171,10 @@ class ContentStatsAPIView(APIView):
      --------------------------
      Bonus: What changes do we need if we want timezone support?
     """
+
     def get(self, request):
         query_params = request.query_params.dict()
-        tag = query_params.get('tag', None)
+        tag = query_params.get("tag", None)
         data = {
             "total_likes": 0,
             "total_shares": 0,
@@ -217,9 +186,7 @@ class ContentStatsAPIView(APIView):
             "total_followers": 0,
         }
         if tag:
-            queryset = Content.objects.filter(
-                contentag__tag__name=tag
-            )
+            queryset = Content.objects.filter(contentag__tag__name=tag)
         else:
             queryset = Content.objects.all()
         for query in queryset:
