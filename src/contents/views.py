@@ -1,3 +1,4 @@
+from django.db.models import Sum, Count
 from rest_framework import status
 from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
 from rest_framework.response import Response
@@ -62,10 +63,7 @@ class ContentAPIView(APIView):
         paginator.get_paginated_response(serialized.data)
         return paginator.get_paginated_response(serialized.data)
 
-    def post(
-        self,
-        request,
-    ):
+    def post(self, request):
         """
         TODO: This api is very hard to read, and inefficient.
          The users complaining that the contents they are seeing is not being updated.
@@ -147,6 +145,13 @@ class ContentAPIView(APIView):
 
 
 class ContentStatsAPIView(APIView):
+    filterset_class = ContentFilter
+
+    def get_queryset(self):
+        queryset = Content.objects.all()
+        filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        return filterset.qs
+
     """
     TODO: This api is taking way too much time to resolve.
      Contents that will be fetched using `ContentAPIView`, we need stats for that
@@ -173,8 +178,7 @@ class ContentStatsAPIView(APIView):
     """
 
     def get(self, request):
-        query_params = request.query_params.dict()
-        tag = query_params.get("tag", None)
+        queryset = self.get_queryset()
         data = {
             "total_likes": 0,
             "total_shares": 0,
@@ -185,17 +189,18 @@ class ContentStatsAPIView(APIView):
             "total_contents": 0,
             "total_followers": 0,
         }
-        if tag:
-            queryset = Content.objects.filter(contentag__tag__name=tag)
-        else:
-            queryset = Content.objects.all()
-        for query in queryset:
-            data["total_likes"] += query.like_count
-            data["total_shares"] += query.share_count
-            data["total_comments"] += query.comment_count
-            data["total_views"] += query.view_count
-            data["total_engagement"] += data["total_likes"] + data["total_shares"] + data["total_comments"]
-            data["total_followers"] += query.author.followers
-            data["total_contents"] += 1
+        aggregated_data = queryset.aggregate(
+            total_likes=Sum("like_count"),
+            total_shares=Sum("share_count"),
+            total_views=Sum("view_count"),
+            total_comments=Sum("comment_count"),
+            total_followers=Sum("author__followers"),
+            total_contents=Count("id"),
+        )
 
+        data.update(aggregated_data)
+        data["total_engagement"] = data["total_likes"] + data["total_shares"] + data["total_comments"]
+        data["total_engagement_rate"] = (
+            (data["total_engagement"] / data["total_views"]) * 100 if data["total_views"] else 0
+        )
         return Response(data, status=status.HTTP_201_CREATED)
