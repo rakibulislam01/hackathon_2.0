@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "contents",
     "rest_framework",
     "django_filters",
+    "rest_framework.authtoken",
 ]
 
 MIDDLEWARE = [
@@ -134,4 +135,11 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-REST_FRAMEWORK = {"DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination", "PAGE_SIZE": 10}
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework.authentication.TokenAuthentication",),
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 10,
+}
+
+API_KEY = "68f850fbsk_836csk_4a14sk_a690sk_cb836cb928141728099159"
