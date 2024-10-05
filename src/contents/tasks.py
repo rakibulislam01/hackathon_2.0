@@ -4,7 +4,7 @@ from contents.content_service import ContentService
 from celery import shared_task
 
 
-@app.task(queue="content_pull")
+@app.task()
 def pull_content():
     content_service = ContentService()
 
@@ -16,7 +16,7 @@ def pull_content():
     content_service.prepare_content(res)
 
 
-@app.task(queue="comment_generation", rate_limit="2/m")
+@app.task(queue="comment_generation", rate_limit="1/m")
 def generate_comment(content):
     content_service = ContentService()
     content_service.generate_comment(content)
