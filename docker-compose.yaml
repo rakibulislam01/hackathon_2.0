@@ -40,3 +40,36 @@ services:
     environment:
       DATABASE_URL: postgres://django:django@db/contentapi
       REDIS_URL: redis://redis:6379/1
+#  celery:
+#    build:
+#      context: .
+#      dockerfile: DockerFile
+#    container_name: celery_worker
+#    command: celery -A contentapi worker --loglevel=info
+#    volumes:
+#      - type: bind
+#        source: ./src
+#        target: /src
+#    depends_on:
+#      - db
+#      - redis
+#    environment:
+#      DATABASE_URL: postgres://django:django@db/contentapi
+#      REDIS_URL: redis://redis:6379/1
+#
+#  celery_beat:
+#    build:
+#      context: .
+#      dockerfile: DockerFile
+#    container_name: celery_beat
+#    command: celery -A contentapi beat --loglevel=info
+#    volumes:
+#      - type: bind
+#        source: ./src
+#        target: /src
+#    depends_on:
+#      - db
+#      - redis
+#    environment:
+#      DATABASE_URL: postgres://django:django@db/contentapi
+#      REDIS_URL: redis://redis:6379/1

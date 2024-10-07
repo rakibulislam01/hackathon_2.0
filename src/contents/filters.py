@@ -2,6 +2,8 @@ from django_filters import rest_framework as filters
 from django.db.models import Q
 from datetime import datetime, timedelta
 
+from contents.models import VideoData
+
 
 class ContentFilter(filters.FilterSet):
     author_id = filters.CharFilter(field_name="author__id", lookup_expr="icontains")
@@ -33,3 +35,12 @@ class ContentFilter(filters.FilterSet):
         date = datetime.now().date() - timedelta(days=days)
         queryset = queryset.filter(created_at__gte=date)
         return queryset
+
+
+class VideoFilter(filters.FilterSet):
+    user_name = filters.CharFilter(field_name="video_publisher__user_name", lookup_expr="icontains")
+    video_caption = filters.CharFilter(lookup_expr="icontains")
+
+    class Meta:
+        model = VideoData
+        fields = ["user_name", "video_caption"]

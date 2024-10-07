@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from contents.models import Content, Author, ContentTag
+from contents.models import Content, Author, ContentTag, VideoData, VideoPublisher
 
 
 # For Reading the data from the DB
@@ -19,7 +19,7 @@ class ContentBaseSerializer(serializers.ModelSerializer):
         return obj.like_count + obj.comment_count + obj.view_count + obj.share_count
 
     def get_engagement_rate(self, obj):
-        return (self.get_total_engagement(obj) / obj.view_count) * 100
+        return (self.get_total_engagement(obj) / obj.view_count) * 100 if obj.view_count else 0
 
     def get_tags(self, obj):
         data = ContentTag.objects.filter(content=obj).values_list("tag__name", flat=True)
@@ -80,3 +80,55 @@ class ContentPostSerializer(serializers.Serializer):
     title = serializers.CharField(required=True)
     hashtags = serializers.ListField(child=serializers.CharField())
     timestamp = serializers.DateTimeField(required=True)
+
+
+class VideoDataSerializer(serializers.Serializer):
+    video_url = serializers.CharField(required=True)
+    video_caption = serializers.CharField(required=False)
+    video_publisher = serializers.CharField(required=False)
+    query = serializers.CharField(required=False)
+
+
+class VideoPublisherSerializer(serializers.ModelSerializer):
+
+    def validate(self, data):
+        return data
+
+    class Meta:
+        model = VideoPublisher
+        fields = "__all__"
+
+
+# Task 1: Serializer to return limited fields for the list API
+class VideoListSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
+    def get_user_name(self, obj):
+        return obj.video_publisher.user_name if obj.video_publisher else None
+
+    class Meta:
+        model = VideoData
+        fields = ["id", "video_url", "video_caption", "user_name"]
+
+
+class VideoDetailSerializer(serializers.ModelSerializer):
+    following = serializers.SerializerMethodField()
+    followers = serializers.SerializerMethodField()
+    likes = serializers.SerializerMethodField()
+    user_name = serializers.SerializerMethodField()
+
+    def get_following(self, obj):
+        return obj.video_publisher.following if obj.video_publisher else None
+
+    def get_followers(self, obj):
+        return obj.video_publisher.followers if obj.video_publisher else None
+
+    def get_likes(self, obj):
+        return obj.video_publisher.likes if obj.video_publisher else None
+
+    def get_user_name(self, obj):
+        return obj.video_publisher.user_name if obj.video_publisher else None
+
+    class Meta:
+        model = VideoData
+        fields = ["id", "video_url", "video_caption", "user_name", "following", "followers", "likes"]
