@@ -1,0 +1,12 @@
+# Ignore unnecessary files and directories
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.db
+*.sqlite3
+.env
+.git
+.vscode
+node_modules
+db/data

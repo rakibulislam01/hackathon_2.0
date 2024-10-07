@@ -14,7 +14,7 @@ app.autodiscover_tasks()
 
 app.conf.beat_schedule = {
     "pull_content": {
-        "task": "pull_and_store_content",
+        "task": "pull_content",
         "schedule": crontab(),
         # "schedule": timedelta(seconds=30),
     },
