@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 import environ
 
@@ -143,3 +144,9 @@ REST_FRAMEWORK = {
 }
 
 API_KEY = "68f850fbsk_836csk_4a14sk_a690sk_cb836cb928141728099159"
+
+CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://redis:6379/1")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_TIMEZONE = "UTC"

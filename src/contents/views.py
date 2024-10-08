@@ -1,13 +1,27 @@
+import json
+
+import requests
 from django.db.models import Sum, Count
-from rest_framework import status
-from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status, filters
+from rest_framework.generics import RetrieveAPIView, ListAPIView
+from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from contents.content_service import ContentService
-from contents.filters import ContentFilter
-from contents.models import Content, Author, Tag, ContentTag
-from contents.serializers import ContentSerializer, ContentPostSerializer
+from contents.filters import ContentFilter, VideoFilter
+from contents.models import Content, Author
+from contents.models.video_data import VideoData
+from contents.serializers import (
+    ContentSerializer,
+    ContentPostSerializer,
+    VideoDataSerializer,
+    VideoPublisher,
+    VideoPublisherSerializer,
+)
+from .serializers import VideoListSerializer, VideoDetailSerializer
 
 
 class ContentAPIView(APIView):
@@ -16,7 +30,7 @@ class ContentAPIView(APIView):
     service = ContentService()
 
     def get_queryset(self):
-        queryset = Content.objects.all()
+        queryset = Content.objects.all().select_related("author")
         filterset = self.filterset_class(self.request.GET, queryset=queryset)
         return filterset.qs
 
@@ -144,3 +158,99 @@ class ContentStatsAPIView(APIView):
             (data["total_engagement"] / data["total_views"]) * 100 if data["total_views"] else 0
         )
         return Response(data, status=status.HTTP_201_CREATED)
+
+
+class VideoDataAPIView(APIView):
+    serializer_class = VideoDataSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, many=True)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        for data in validated_data:
+            user_name = data.get("video_publisher", None)
+            print(f"User Name: {user_name}")
+            if user_name:
+                video_publisher, _ = VideoPublisher.objects.get_or_create(user_name=user_name)
+            else:
+                video_publisher = None
+            content, _ = VideoData.objects.update_or_create(
+                video_url=data.get("video_url"),
+                defaults={
+                    "video_url": data.get("video_url"),
+                    "video_caption": data.get("video_caption"),
+                    "video_publisher": video_publisher,
+                    "query": data.get("query"),
+                },
+            )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class VideoPublisherAPIView(APIView):
+    serializer_class = VideoPublisherSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, many=True)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        for data in validated_data:
+            content, _ = VideoPublisher.objects.update_or_create(
+                user_name=data.get("user_name"),
+                defaults={
+                    "user_name": data.get("user_name"),
+                    "following": data.get("following"),
+                    "followers": data.get("followers"),
+                    "likes": data.get("likes"),
+                },
+            )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# Custom pagination class to control the number of items per page
+class VideoPagination(PageNumberPagination):
+    page_size = 10  # Default page size
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+class VideoListView(ListAPIView):
+    queryset = VideoData.objects.select_related("video_publisher").all()
+    serializer_class = VideoListSerializer
+    pagination_class = VideoPagination
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+
+    # Define available filters
+    filterset_class = VideoFilter
+
+    # Sorting options (follower count and likes)
+    ordering_fields = ["video_publisher__followers", "video_publisher__likes"]
+    ordering = ["video_publisher__followers"]  # Default ordering by followers
+
+    def get_queryset(self):
+        """
+        Override get_queryset to allow dynamic filtering and sorting.
+        This method ensures efficient database queries.
+        """
+        queryset = super().get_queryset()
+        return queryset
+
+
+class VideoDetailView(RetrieveAPIView):
+    queryset = VideoData.objects.select_related("video_publisher")  # optimized query
+    serializer_class = VideoDetailSerializer
+    lookup_field = "id"
+
+
+class VideoHashtagDataAPIView(APIView):
+    def get(self, request):
+        data = request.query_params.dict()
+        hash_tag = data.get("hashtag")
+        if not hash_tag:
+            return Response({"error": "Missing hashtag"}, status=status.HTTP_400_BAD_REQUEST)
+        base_url = "http://192.168.243.159:3000/scrapingquery/"
+        payload = json.dumps({"query": "beautiful destination"})
+        headers = {"Content-Type": "application/json"}
+
+        response = requests.request("POST", base_url, headers=headers, data=payload)
+
+        return Response(response.json(), status=response.status_code)
